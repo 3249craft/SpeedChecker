@@ -39,12 +39,15 @@ const unsigned long BUTTON_DEBOUNCE_MS = 50;
 #define DEBUG_MODE true
 
 // Menu Header Format: 0=centered, 1="< Name >", 2="[1/3] Name"
-#define MENU_HEADER_FORMAT 1
+#define MENU_HEADER_FORMAT 0
 
 // Display layout
 const uint8_t MENU_HEADER_HEIGHT = 12;
 const uint8_t MENU_CONTENT_Y = 14;
-const uint8_t BUTTON_HINT_Y = 54;
+
+// Button hint sidebar (vertical on right side)
+const uint8_t BUTTON_SIDEBAR_WIDTH = 10;
+const uint8_t CONTENT_WIDTH = SCREEN_WIDTH - BUTTON_SIDEBAR_WIDTH;  // 118 pixels
 
 // Dyno Graph Configuration
 const float DYNO_MAX_SPEED_KMH = 50.0f;

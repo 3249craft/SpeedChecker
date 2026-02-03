@@ -177,51 +177,58 @@ static void display_draw_header(MenuId menu_id) {
     int16_t name_width = strlen(name) * 6;
 
 #if MENU_HEADER_FORMAT == 0
-    // Centered menu name
-    int16_t x = (SCREEN_WIDTH - name_width) / 2;
-    display.setCursor(x, 0);
+    // Centered menu name (within content area)
+    int16_t x = (CONTENT_WIDTH - name_width) / 2;
+    display.setCursor(x, 2);
     display.print(name);
 
 #elif MENU_HEADER_FORMAT == 1
-    // "< Menu Name >" with navigation hints
-    display.setCursor(2, 0);
+    // "< Menu Name >" with navigation hints (within content area)
+    display.setCursor(2, 2);
     display.print("<");
-    int16_t x = (SCREEN_WIDTH - name_width) / 2;
-    display.setCursor(x, 0);
+    int16_t x = (CONTENT_WIDTH - name_width) / 2;
+    display.setCursor(x, 2);
     display.print(name);
-    display.setCursor(SCREEN_WIDTH - 8, 0);
+    display.setCursor(CONTENT_WIDTH - 10, 2);
     display.print(">");
 
 #elif MENU_HEADER_FORMAT == 2
     // "[1/3] Menu Name" with page indicator
     char header[24];
     snprintf(header, sizeof(header), "[%d/%d] %s", menu_id + 1, MENU_COUNT, name);
-    display.setCursor(0, 0);
+    display.setCursor(2, 2);
     display.print(header);
 #endif
 
-    // Draw separator line
-    display.drawLine(0, MENU_HEADER_HEIGHT, SCREEN_WIDTH - 1, MENU_HEADER_HEIGHT, SSD1306_WHITE);
+    // Draw separator line (stop at sidebar)
+    display.drawLine(0, MENU_HEADER_HEIGHT, CONTENT_WIDTH, MENU_HEADER_HEIGHT, SSD1306_WHITE);
 }
 
 static void display_draw_button_hints(const char* b1, const char* b2, const char* b3, const char* b4) {
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
 
-    // Draw separator line above hints (right half only)
-    display.drawLine(64, BUTTON_HINT_Y - 2, SCREEN_WIDTH - 1, BUTTON_HINT_Y - 2, SSD1306_WHITE);
+    // Draw vertical separator line (full height)
+    const int16_t sidebar_x = CONTENT_WIDTH;
+    display.drawLine(sidebar_x, 0, sidebar_x, SCREEN_HEIGHT - 1, SSD1306_WHITE);
 
-    // Draw 4 button hints on right side of screen
-    const char* hints[4] = {b1, b2, b3, b4};
-    const int16_t right_start = 64;
-    const int16_t spacing = (SCREEN_WIDTH - right_start) / 4;  // 16 pixels each
+    // Button order: 4 at top, 3, 2, 1 at bottom (matching physical layout)
+    const char* hints[4] = {b4, b3, b2, b1};
+    const int16_t hint_height = SCREEN_HEIGHT / 4;  // 16 pixels each
 
     for (uint8_t i = 0; i < 4; i++) {
+        int16_t y = i * hint_height;
+
+        // Draw single character hint centered
         if (hints[i] != nullptr && strlen(hints[i]) > 0) {
-            int16_t hint_width = strlen(hints[i]) * 6;
-            int16_t x = right_start + i * spacing + (spacing - hint_width) / 2;
-            display.setCursor(x, BUTTON_HINT_Y);
-            display.print(hints[i]);
+            display.setCursor(sidebar_x + 2, y + 4);
+            display.print(hints[i][0]);  // Only first character
+        }
+
+        // Draw separator between buttons (except last)
+        if (i < 3) {
+            int16_t sep_y = y + hint_height;
+            display.drawLine(sidebar_x + 1, sep_y, SCREEN_WIDTH - 1, sep_y, SSD1306_WHITE);
         }
     }
 }
@@ -234,50 +241,48 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
     float max_speed = menu_convert_speed(state.max_speed_kmh, state.current_unit);
     const char* unit_str = menu_get_unit_string(state.current_unit);
 
-    // Draw current speed (large, size 3)
-    display.setTextSize(3);
+    // Draw current speed (large, size 2 to fit in content area)
+    display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(4, MENU_CONTENT_Y + 2);
+    display.setCursor(2, MENU_CONTENT_Y + 2);
     dtostrf(current_speed, 5, 1, buf);
     display.print(buf);
 
-    // Draw unit (smaller, to the right)
+    // Draw unit (smaller, next to speed)
     display.setTextSize(1);
-    display.setCursor(100, MENU_CONTENT_Y + 2);
-    display.print(unit_str);
-
-    // Draw max speed indicator
-    display.setTextSize(1);
-    display.setCursor(0, MENU_CONTENT_Y + 28);
-    display.print("MAX:");
-    dtostrf(max_speed, 5, 1, buf);
-    display.print(buf);
-    display.print(" ");
+    display.setCursor(66, MENU_CONTENT_Y + 2);
     display.print(unit_str);
 
     // Draw signal indicator
-    display.setCursor(100, MENU_CONTENT_Y + 28);
+    display.setCursor(66, MENU_CONTENT_Y + 12);
     display.print(data.signal_active ? "SIG" : "---");
+
+    // Draw max speed indicator
+    display.setTextSize(1);
+    display.setCursor(0, MENU_CONTENT_Y + 22);
+    display.print("MAX:");
+    dtostrf(max_speed, 4, 1, buf);
+    display.print(buf);
+    display.print(unit_str);
 
 #if DEBUG_MODE
     // Draw debug info: PPS and MIN interval
     char pps_buf[16];
-    char min_buf[12];
-    display.setCursor(0, MENU_CONTENT_Y + 38);
-    snprintf(pps_buf, sizeof(pps_buf), "PPS %lu", data.pulses_per_second);
+    display.setCursor(0, MENU_CONTENT_Y + 32);
+    snprintf(pps_buf, sizeof(pps_buf), "PPS:%lu", data.pulses_per_second);
     display.print(pps_buf);
-    display.print(" MIN ");
-    snprintf(min_buf, sizeof(min_buf), "%luus", data.min_interval_us);
-    display.print(min_buf);
+    display.setCursor(0, MENU_CONTENT_Y + 42);
+    snprintf(pps_buf, sizeof(pps_buf), "MIN:%luus", data.min_interval_us);
+    display.print(pps_buf);
 #endif
 }
 
 static void display_draw_dyno_graph(const DynoGraphState& state) {
-    // Graph dimensions
-    const int16_t graph_x = 18;
+    // Graph dimensions (fit within content area)
+    const int16_t graph_x = 14;
     const int16_t graph_y = MENU_CONTENT_Y + 2;
-    const int16_t graph_w = 105;
-    const int16_t graph_h = 36;
+    const int16_t graph_w = CONTENT_WIDTH - graph_x - 4;  // ~86 pixels
+    const int16_t graph_h = 38;
 
     // Draw Y-axis
     display.drawLine(graph_x, graph_y, graph_x, graph_y + graph_h, SSD1306_WHITE);
@@ -302,7 +307,7 @@ static void display_draw_dyno_graph(const DynoGraphState& state) {
     display.setCursor(graph_x + 4, graph_y + 2);
     switch (state.state) {
         case DYNO_IDLE:
-            display.print("Ready");
+            display.print("Rdy");
             break;
         case DYNO_RECORDING:
             display.print("REC");
@@ -338,31 +343,31 @@ static void display_draw_stopwatch(const StopwatchState& state, unsigned long no
     char time_buf[16];
     unsigned long display_ms = state.elapsed_ms;
 
-    // Format as MM:SS.mmm
+    // Format as MM:SS.mm (shortened for space)
     unsigned long total_sec = display_ms / 1000;
     unsigned long minutes = total_sec / 60;
     unsigned long seconds = total_sec % 60;
-    unsigned long millis_part = display_ms % 1000;
+    unsigned long centis = (display_ms % 1000) / 10;
 
-    snprintf(time_buf, sizeof(time_buf), "%02lu:%02lu.%03lu", minutes, seconds, millis_part);
-
-    // Draw main time (large, size 2)
-    display.setTextSize(2);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(4, MENU_CONTENT_Y + 4);
-    display.print(time_buf);
+    snprintf(time_buf, sizeof(time_buf), "%02lu:%02lu.%02lu", minutes, seconds, centis);
 
     // Draw state indicator
     display.setTextSize(1);
-    display.setCursor(100, MENU_CONTENT_Y + 4);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, MENU_CONTENT_Y + 2);
     switch (state.state) {
         case SW_STOPPED:
-            display.print("STOP");
+            display.print("STOPPED");
             break;
         case SW_RUNNING:
-            display.print("RUN");
+            display.print("RUNNING");
             break;
     }
+
+    // Draw main time (large, size 2)
+    display.setTextSize(2);
+    display.setCursor(2, MENU_CONTENT_Y + 14);
+    display.print(time_buf);
 
     // Draw lap times (show last 2 laps)
     display.setTextSize(1);
@@ -373,11 +378,11 @@ static void display_draw_stopwatch(const StopwatchState& state, unsigned long no
         unsigned long lap_sec = lap_ms / 1000;
         unsigned long lap_min = lap_sec / 60;
         unsigned long lap_s = lap_sec % 60;
-        unsigned long lap_m = lap_ms % 1000;
+        unsigned long lap_c = (lap_ms % 1000) / 10;
 
-        snprintf(time_buf, sizeof(time_buf), "L%d %02lu:%02lu.%03lu",
-                 lap_idx + 1, lap_min, lap_s, lap_m);
-        display.setCursor(0, MENU_CONTENT_Y + 24 + i * 10);
+        snprintf(time_buf, sizeof(time_buf), "L%d %02lu:%02lu.%02lu",
+                 lap_idx + 1, lap_min, lap_s, lap_c);
+        display.setCursor(0, MENU_CONTENT_Y + 34 + i * 10);
         display.print(time_buf);
     }
 }
@@ -390,26 +395,26 @@ static void display_draw_debug(const ButtonState& buttons) {
     display.setCursor(0, MENU_CONTENT_Y + 2);
     display.print("Button States:");
 
-    // Draw button boxes with labels
+    // Draw button boxes with labels (fit in content area)
     for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
-        int16_t x = 8 + i * 30;
+        int16_t x = 4 + i * 24;
         int16_t y = MENU_CONTENT_Y + 16;
 
         // Draw button number
-        display.setCursor(x + 4, y);
+        display.setCursor(x + 5, y);
         display.print(i + 1);
 
         // Draw button state box
         int16_t box_y = y + 10;
         if (buttons.pressed[i]) {
-            display.fillRect(x, box_y, 20, 14, SSD1306_WHITE);
+            display.fillRect(x, box_y, 18, 12, SSD1306_WHITE);
             display.setTextColor(SSD1306_BLACK);
-            display.setCursor(x + 4, box_y + 3);
+            display.setCursor(x + 3, box_y + 2);
             display.print("ON");
             display.setTextColor(SSD1306_WHITE);
         } else {
-            display.drawRect(x, box_y, 20, 14, SSD1306_WHITE);
-            display.setCursor(x + 1, box_y + 3);
+            display.drawRect(x, box_y, 18, 12, SSD1306_WHITE);
+            display.setCursor(x + 1, box_y + 2);
             display.print("OFF");
         }
     }
@@ -426,19 +431,19 @@ void display_draw_menu(const MenuState& menu, const SpeedData& data, unsigned lo
     switch (menu.current_menu) {
         case MENU_SPEEDOMETER:
             display_draw_speedometer(data, menu.speedometer);
-            display_draw_button_hints("Unit", "Rst", "<", ">");
+            display_draw_button_hints("U", "R", "<", ">");
             break;
 
         case MENU_DYNO_GRAPH:
             display_draw_dyno_graph(menu.dyno);
-            display_draw_button_hints("", "Rst", "<", ">");
+            display_draw_button_hints("", "R", "<", ">");
             break;
 
         case MENU_STOPWATCH:
             display_draw_stopwatch(menu.stopwatch, now_ms);
             {
-                const char* btn1_hint = (menu.stopwatch.state == SW_STOPPED) ? "Go" : "Lap";
-                display_draw_button_hints(btn1_hint, "Rst", "<", ">");
+                const char* btn1 = (menu.stopwatch.state == SW_STOPPED) ? ">" : "L";
+                display_draw_button_hints(btn1, "R", "<", ">");
             }
             break;
 

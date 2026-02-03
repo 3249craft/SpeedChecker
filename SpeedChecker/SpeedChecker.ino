@@ -9,7 +9,9 @@ void setup() {
     if (!display_init()) {
         while (true); // OLED not found
     }
+#if !DEBUG_MODE
     display_show_splash();
+#endif
     sensor_init();
     speed_calculator_init();
     button_init();
@@ -31,19 +33,22 @@ void loop() {
         menu_next();
     }
 
+    // Handle context-dependent button actions (Button 1 and 2)
+    // Must be outside the timed block to catch the just_pressed event
+    static SpeedData last_speed_data = {0};
+    if (events.just_pressed[0]) {
+        menu_action_button1(last_speed_data);
+    }
+    if (events.just_pressed[1]) {
+        menu_action_button2();
+    }
+
     // Update display at defined interval
     if (now_ms - last_update_ms >= SPEED_UPDATE_MS) {
         unsigned long window_ms = now_ms - last_update_ms;
         PulseData pulse_data = sensor_read_and_reset();
         SpeedData speed_data = calculate_speed(pulse_data, window_ms, micros());
-
-        // Handle context-dependent button actions (Button 1 and 2)
-        if (events.just_pressed[0]) {
-            menu_action_button1(speed_data);
-        }
-        if (events.just_pressed[1]) {
-            menu_action_button2();
-        }
+        last_speed_data = speed_data;  // Store for button actions
 
         // Update menu state
         menu_update(speed_data, now_ms);
