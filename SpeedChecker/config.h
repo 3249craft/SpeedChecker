@@ -28,4 +28,30 @@ const float MAX_SPEED_KMH = 99.0f;
 const unsigned long SPEED_UPDATE_MS = 400;
 const unsigned long MIN_PULSE_INTERVAL_US = 120;
 
+// Button Configuration
+const uint8_t BUTTON_COUNT = 4;
+const uint8_t BUTTON_PINS[BUTTON_COUNT] = {4, 5, 6, 7};  // D4, D5, D6, D7
+const unsigned long BUTTON_DEBOUNCE_MS = 50;
+
+// ========== Menu Configuration ==========
+
+// Debug Mode - shows PPS and MIN interval in SpeedoMeter
+#define DEBUG_MODE true
+
+// Menu Header Format: 0=centered, 1="< Name >", 2="[1/3] Name"
+#define MENU_HEADER_FORMAT 1
+
+// Display layout
+const uint8_t MENU_HEADER_HEIGHT = 12;
+const uint8_t MENU_CONTENT_Y = 14;
+const uint8_t BUTTON_HINT_Y = 54;
+
+// Dyno Graph Configuration
+const float DYNO_MAX_SPEED_KMH = 50.0f;
+const uint8_t DYNO_DURATION_SEC = 10;
+const uint8_t DYNO_SAMPLES = 25;
+
+// Stopwatch Configuration
+const uint8_t MAX_LAPS = 10;
+
 #endif

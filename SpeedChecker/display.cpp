@@ -1,4 +1,5 @@
 #include "display.h"
+#include "menu.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -116,7 +117,344 @@ void display_draw_speed(const SpeedData& data) {
     display.display();
 }
 
+void display_draw_speed_with_buttons(const SpeedData& data, const ButtonState& buttons) {
+    char buf[8];
+    char min_buf[12];
+    char pps_buf[16];
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    dtostrf(data.current_speed_kmh, 4, 1, buf);
+    display.print(buf);
+    display.print("km/h");
+    display.setTextSize(1);
+    display.setCursor(96, 0);
+    display.print(data.signal_active ? "SIG" : "NO");
+
+    display.setTextSize(1);
+    display.setCursor(0, 20);
+    snprintf(pps_buf, sizeof(pps_buf), "PPS %lu", data.pulses_per_second);
+    display.print(pps_buf);
+    display.print(" MIN ");
+    snprintf(min_buf, sizeof(min_buf), "%luus", data.min_interval_us);
+    display.print(min_buf);
+
+    // Draw button indicators at bottom
+    display.setCursor(0, 56);
+    display.print("BTN:");
+    for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
+        int16_t x = 30 + i * 20;
+        int16_t y = 54;
+        if (buttons.pressed[i]) {
+            display.fillRect(x, y, 12, 10, SSD1306_WHITE);
+        } else {
+            display.drawRect(x, y, 12, 10, SSD1306_WHITE);
+        }
+        display.setCursor(x + 3, y + 1);
+        display.setTextColor(buttons.pressed[i] ? SSD1306_BLACK : SSD1306_WHITE);
+        display.print(i + 1);
+        display.setTextColor(SSD1306_WHITE);
+    }
+
+    display.display();
+}
+
 void display_clear() {
     display.clearDisplay();
+    display.display();
+}
+
+// ========== Menu Rendering Functions ==========
+
+static void display_draw_header(MenuId menu_id) {
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    const char* name = menu_get_menu_name(menu_id);
+    int16_t name_width = strlen(name) * 6;
+
+#if MENU_HEADER_FORMAT == 0
+    // Centered menu name
+    int16_t x = (SCREEN_WIDTH - name_width) / 2;
+    display.setCursor(x, 0);
+    display.print(name);
+
+#elif MENU_HEADER_FORMAT == 1
+    // "< Menu Name >" with navigation hints
+    display.setCursor(2, 0);
+    display.print("<");
+    int16_t x = (SCREEN_WIDTH - name_width) / 2;
+    display.setCursor(x, 0);
+    display.print(name);
+    display.setCursor(SCREEN_WIDTH - 8, 0);
+    display.print(">");
+
+#elif MENU_HEADER_FORMAT == 2
+    // "[1/3] Menu Name" with page indicator
+    char header[24];
+    snprintf(header, sizeof(header), "[%d/%d] %s", menu_id + 1, MENU_COUNT, name);
+    display.setCursor(0, 0);
+    display.print(header);
+#endif
+
+    // Draw separator line
+    display.drawLine(0, MENU_HEADER_HEIGHT, SCREEN_WIDTH - 1, MENU_HEADER_HEIGHT, SSD1306_WHITE);
+}
+
+static void display_draw_button_hints(const char* b1, const char* b2, const char* b3, const char* b4) {
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    // Draw separator line above hints (right half only)
+    display.drawLine(64, BUTTON_HINT_Y - 2, SCREEN_WIDTH - 1, BUTTON_HINT_Y - 2, SSD1306_WHITE);
+
+    // Draw 4 button hints on right side of screen
+    const char* hints[4] = {b1, b2, b3, b4};
+    const int16_t right_start = 64;
+    const int16_t spacing = (SCREEN_WIDTH - right_start) / 4;  // 16 pixels each
+
+    for (uint8_t i = 0; i < 4; i++) {
+        if (hints[i] != nullptr && strlen(hints[i]) > 0) {
+            int16_t hint_width = strlen(hints[i]) * 6;
+            int16_t x = right_start + i * spacing + (spacing - hint_width) / 2;
+            display.setCursor(x, BUTTON_HINT_Y);
+            display.print(hints[i]);
+        }
+    }
+}
+
+static void display_draw_speedometer(const SpeedData& data, const SpeedometerState& state) {
+    char buf[16];
+
+    // Convert speeds to current unit
+    float current_speed = menu_convert_speed(data.current_speed_kmh, state.current_unit);
+    float max_speed = menu_convert_speed(state.max_speed_kmh, state.current_unit);
+    const char* unit_str = menu_get_unit_string(state.current_unit);
+
+    // Draw current speed (large, size 3)
+    display.setTextSize(3);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(4, MENU_CONTENT_Y + 2);
+    dtostrf(current_speed, 5, 1, buf);
+    display.print(buf);
+
+    // Draw unit (smaller, to the right)
+    display.setTextSize(1);
+    display.setCursor(100, MENU_CONTENT_Y + 2);
+    display.print(unit_str);
+
+    // Draw max speed indicator
+    display.setTextSize(1);
+    display.setCursor(0, MENU_CONTENT_Y + 28);
+    display.print("MAX:");
+    dtostrf(max_speed, 5, 1, buf);
+    display.print(buf);
+    display.print(" ");
+    display.print(unit_str);
+
+    // Draw signal indicator
+    display.setCursor(100, MENU_CONTENT_Y + 28);
+    display.print(data.signal_active ? "SIG" : "---");
+
+#if DEBUG_MODE
+    // Draw debug info: PPS and MIN interval
+    char pps_buf[16];
+    char min_buf[12];
+    display.setCursor(0, MENU_CONTENT_Y + 38);
+    snprintf(pps_buf, sizeof(pps_buf), "PPS %lu", data.pulses_per_second);
+    display.print(pps_buf);
+    display.print(" MIN ");
+    snprintf(min_buf, sizeof(min_buf), "%luus", data.min_interval_us);
+    display.print(min_buf);
+#endif
+}
+
+static void display_draw_dyno_graph(const DynoGraphState& state) {
+    // Graph dimensions
+    const int16_t graph_x = 18;
+    const int16_t graph_y = MENU_CONTENT_Y + 2;
+    const int16_t graph_w = 105;
+    const int16_t graph_h = 36;
+
+    // Draw Y-axis
+    display.drawLine(graph_x, graph_y, graph_x, graph_y + graph_h, SSD1306_WHITE);
+    // Draw X-axis
+    display.drawLine(graph_x, graph_y + graph_h, graph_x + graph_w, graph_y + graph_h, SSD1306_WHITE);
+
+    // Draw axis labels
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    // Y-axis label (50 at top, 0 at bottom)
+    display.setCursor(0, graph_y);
+    display.print("50");
+    display.setCursor(6, graph_y + graph_h - 6);
+    display.print("0");
+
+    // X-axis label
+    display.setCursor(graph_x + graph_w - 12, graph_y + graph_h + 2);
+    display.print("10s");
+
+    // Draw state indicator
+    display.setCursor(graph_x + 4, graph_y + 2);
+    switch (state.state) {
+        case DYNO_IDLE:
+            display.print("Ready");
+            break;
+        case DYNO_RECORDING:
+            display.print("REC");
+            break;
+        case DYNO_COMPLETE:
+            display.print("Done");
+            break;
+    }
+
+    // Draw data points as line graph
+    if (state.sample_count > 1) {
+        float x_scale = (float)graph_w / (DYNO_SAMPLES - 1);
+        float y_scale = (float)graph_h / DYNO_MAX_SPEED_KMH;
+
+        for (uint8_t i = 1; i < state.sample_count; i++) {
+            int16_t x1 = graph_x + (int16_t)((i - 1) * x_scale);
+            int16_t x2 = graph_x + (int16_t)(i * x_scale);
+
+            float speed1 = state.speed_samples[i - 1];
+            float speed2 = state.speed_samples[i];
+            if (speed1 > DYNO_MAX_SPEED_KMH) speed1 = DYNO_MAX_SPEED_KMH;
+            if (speed2 > DYNO_MAX_SPEED_KMH) speed2 = DYNO_MAX_SPEED_KMH;
+
+            int16_t y1 = graph_y + graph_h - (int16_t)(speed1 * y_scale);
+            int16_t y2 = graph_y + graph_h - (int16_t)(speed2 * y_scale);
+
+            display.drawLine(x1, y1, x2, y2, SSD1306_WHITE);
+        }
+    }
+}
+
+static void display_draw_stopwatch(const StopwatchState& state, unsigned long now_ms) {
+    char time_buf[16];
+    unsigned long display_ms = state.elapsed_ms;
+
+    // Format as MM:SS.mmm
+    unsigned long total_sec = display_ms / 1000;
+    unsigned long minutes = total_sec / 60;
+    unsigned long seconds = total_sec % 60;
+    unsigned long millis_part = display_ms % 1000;
+
+    snprintf(time_buf, sizeof(time_buf), "%02lu:%02lu.%03lu", minutes, seconds, millis_part);
+
+    // Draw main time (large, size 2)
+    display.setTextSize(2);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(4, MENU_CONTENT_Y + 4);
+    display.print(time_buf);
+
+    // Draw state indicator
+    display.setTextSize(1);
+    display.setCursor(100, MENU_CONTENT_Y + 4);
+    switch (state.state) {
+        case SW_STOPPED:
+            display.print("STOP");
+            break;
+        case SW_RUNNING:
+            display.print("RUN");
+            break;
+    }
+
+    // Draw lap times (show last 2 laps)
+    display.setTextSize(1);
+    uint8_t laps_to_show = (state.lap_count < 2) ? state.lap_count : 2;
+    for (uint8_t i = 0; i < laps_to_show; i++) {
+        uint8_t lap_idx = state.lap_count - laps_to_show + i;
+        unsigned long lap_ms = state.lap_times_ms[lap_idx];
+        unsigned long lap_sec = lap_ms / 1000;
+        unsigned long lap_min = lap_sec / 60;
+        unsigned long lap_s = lap_sec % 60;
+        unsigned long lap_m = lap_ms % 1000;
+
+        snprintf(time_buf, sizeof(time_buf), "L%d %02lu:%02lu.%03lu",
+                 lap_idx + 1, lap_min, lap_s, lap_m);
+        display.setCursor(0, MENU_CONTENT_Y + 24 + i * 10);
+        display.print(time_buf);
+    }
+}
+
+#if DEBUG_MODE
+static void display_draw_debug(const ButtonState& buttons) {
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    display.setCursor(0, MENU_CONTENT_Y + 2);
+    display.print("Button States:");
+
+    // Draw button boxes with labels
+    for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
+        int16_t x = 8 + i * 30;
+        int16_t y = MENU_CONTENT_Y + 16;
+
+        // Draw button number
+        display.setCursor(x + 4, y);
+        display.print(i + 1);
+
+        // Draw button state box
+        int16_t box_y = y + 10;
+        if (buttons.pressed[i]) {
+            display.fillRect(x, box_y, 20, 14, SSD1306_WHITE);
+            display.setTextColor(SSD1306_BLACK);
+            display.setCursor(x + 4, box_y + 3);
+            display.print("ON");
+            display.setTextColor(SSD1306_WHITE);
+        } else {
+            display.drawRect(x, box_y, 20, 14, SSD1306_WHITE);
+            display.setCursor(x + 1, box_y + 3);
+            display.print("OFF");
+        }
+    }
+}
+#endif
+
+void display_draw_menu(const MenuState& menu, const SpeedData& data, unsigned long now_ms) {
+    display.clearDisplay();
+
+    // Draw header
+    display_draw_header(menu.current_menu);
+
+    // Draw content based on current menu
+    switch (menu.current_menu) {
+        case MENU_SPEEDOMETER:
+            display_draw_speedometer(data, menu.speedometer);
+            display_draw_button_hints("Unit", "Rst", "<", ">");
+            break;
+
+        case MENU_DYNO_GRAPH:
+            display_draw_dyno_graph(menu.dyno);
+            display_draw_button_hints("", "Rst", "<", ">");
+            break;
+
+        case MENU_STOPWATCH:
+            display_draw_stopwatch(menu.stopwatch, now_ms);
+            {
+                const char* btn1_hint = (menu.stopwatch.state == SW_STOPPED) ? "Go" : "Lap";
+                display_draw_button_hints(btn1_hint, "Rst", "<", ">");
+            }
+            break;
+
+#if DEBUG_MODE
+        case MENU_DEBUG:
+            {
+                ButtonState buttons = button_get_state();
+                display_draw_debug(buttons);
+                display_draw_button_hints("", "", "<", ">");
+            }
+            break;
+#endif
+
+        default:
+            break;
+    }
+
     display.display();
 }
