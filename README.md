@@ -11,21 +11,35 @@ SpeedChecker measures the speed of Mini 4WD cars using a reflective optical sens
 | Component | Specification |
 |-----------|---------------|
 | Microcontroller | ATmega32U4 (Arduino Leonardo / Pro Micro) |
-| Display | 128x32 OLED (SSD1306, I2C address 0x3C) |
+| Display | 128x64 OLED (SSD1306, I2C address 0x3C) |
 | Sensor | QRE1113 reflective optical sensor |
 | Sensor Pin | D1 (TXO) - interrupt capable |
 
+## Project Structure
+
+```
+SpeedChecker/
+├── SpeedChecker.ino      # Main application (orchestration)
+├── config.h              # All configuration constants
+├── sensor.h              # Sensor module interface
+├── sensor.cpp            # Sensor implementation (ISR, pulse counting)
+├── speed_calculator.h    # Speed calculation interface
+├── speed_calculator.cpp  # Speed computation logic
+├── display.h             # Display module interface
+└── display.cpp           # OLED rendering, splash screen, logo
+```
+
 ## Configuration
 
-Default parameters in `src/SpeedChecker.ino`:
+Parameters in `SpeedChecker/config.h`:
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| `wheel_diameter_mm` | 19.0 | Wheel diameter in millimeters |
-| `spokes_per_rev` | 3 | Number of spokes on the paddle wheel |
-| `speed_update_ms` | 500 | Display update interval (ms) |
-| `min_pulse_interval_us` | 120 | Debounce threshold (microseconds) |
-| `max_speed_kmh` | 99.0 | Maximum displayed speed |
+| `WHEEL_DIAMETER_MM` | 19.0 | Wheel diameter in millimeters |
+| `SPOKES_PER_REV` | 3 | Number of spokes on the paddle wheel |
+| `SPEED_UPDATE_MS` | 400 | Display update interval (ms) |
+| `MIN_PULSE_INTERVAL_US` | 120 | Debounce threshold (microseconds) |
+| `MAX_SPEED_KMH` | 99.0 | Maximum displayed speed |
 
 ## Wiring
 
@@ -51,11 +65,13 @@ D1 (TXO)  -------> QRE1113 OUT
 ## Display Layout
 
 ```
-+------------------+
-| XX.X km/h    SIG |  <- Speed + signal indicator
-|                  |
-| PPS XX  MIN XXus |  <- Debug info
-+------------------+
++------------------------+
+| XX.X km/h          SIG |  <- Speed + signal indicator
+|                        |
+| PPS XX  MIN XXus       |  <- Debug info
+|                        |
+|                        |
++------------------------+
 ```
 
 ## Building
@@ -63,7 +79,7 @@ D1 (TXO)  -------> QRE1113 OUT
 1. Install required libraries in Arduino IDE:
    - Adafruit GFX Library
    - Adafruit SSD1306
-2. Open `src/SpeedChecker.ino`
+2. Open `SpeedChecker/SpeedChecker.ino`
 3. Select board: Arduino Leonardo (or Pro Micro)
 4. Upload
 
