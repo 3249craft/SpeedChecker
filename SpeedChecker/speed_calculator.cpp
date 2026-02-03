@@ -2,10 +2,12 @@
 
 static float top_speed_kmh = 0.0f;
 static unsigned long last_min_interval_us = 0;
+static float smoothed_speed_kmh = 0.0f;
 
 void speed_calculator_init() {
     top_speed_kmh = 0.0f;
     last_min_interval_us = 0;
+    smoothed_speed_kmh = 0.0f;
 }
 
 SpeedData calculate_speed(const PulseData& pulse_data,
@@ -39,11 +41,6 @@ SpeedData calculate_speed(const PulseData& pulse_data,
         current_speed = MAX_SPEED_KMH;
     }
 
-    // Update top speed
-    if (current_speed > top_speed_kmh) {
-        top_speed_kmh = current_speed;
-    }
-
     // Check signal activity
     data.signal_active = (pulse_data.pulse_count > 0) ||
         ((pulse_data.last_pulse_us != 0) &&
@@ -52,6 +49,24 @@ SpeedData calculate_speed(const PulseData& pulse_data,
     // Zero speed if no signal
     if (!data.signal_active) {
         current_speed = 0.0f;
+        smoothed_speed_kmh = 0.0f;
+    } else {
+        // Apply delta limiter - reject unrealistic speed jumps
+        float delta = current_speed - smoothed_speed_kmh;
+        if (delta > MAX_SPEED_DELTA_KMH) {
+            current_speed = smoothed_speed_kmh + MAX_SPEED_DELTA_KMH;
+        } else if (delta < -MAX_SPEED_DELTA_KMH) {
+            current_speed = smoothed_speed_kmh - MAX_SPEED_DELTA_KMH;
+        }
+
+        // Apply EMA smoothing
+        smoothed_speed_kmh = SPEED_EMA_ALPHA * current_speed + (1.0f - SPEED_EMA_ALPHA) * smoothed_speed_kmh;
+        current_speed = smoothed_speed_kmh;
+    }
+
+    // Update top speed (using filtered value)
+    if (current_speed > top_speed_kmh) {
+        top_speed_kmh = current_speed;
     }
 
     // Update min interval tracking

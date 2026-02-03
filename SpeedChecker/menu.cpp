@@ -34,6 +34,12 @@ void menu_init() {
     g_menu_state.dyno.sample_count = 0;
     g_menu_state.dyno.start_time_ms = 0;
     g_menu_state.dyno.last_sample_ms = 0;
+    g_menu_state.dyno.y_scale_index = DYNO_DEFAULT_SCALE_INDEX;
+    g_menu_state.dyno.current_speed_kmh = 0.0f;
+    g_menu_state.dyno.current_acceleration_mps2 = 0.0f;
+    g_menu_state.dyno.max_acceleration_mps2 = 0.0f;
+    g_menu_state.dyno.max_speed_kmh = 0.0f;
+    g_menu_state.dyno.time_to_peak_ms = 0;
     memset(g_menu_state.dyno.speed_samples, 0, sizeof(g_menu_state.dyno.speed_samples));
 
     // Initialize stopwatch state
@@ -74,17 +80,21 @@ void menu_action_button1(const SpeedData& speed_data) {
 
         case MENU_STOPWATCH:
             if (g_menu_state.stopwatch.state == SW_STOPPED) {
-                // Start stopwatch
-                g_menu_state.stopwatch.state = SW_RUNNING;
-                g_menu_state.stopwatch.start_time_ms = millis();
-                g_menu_state.stopwatch.lap_count = 0;
-            } else if (g_menu_state.stopwatch.state == SW_RUNNING) {
-                // Record lap
-                if (g_menu_state.stopwatch.lap_count < MAX_LAPS) {
-                    unsigned long elapsed = millis() - g_menu_state.stopwatch.start_time_ms;
-                    g_menu_state.stopwatch.lap_times_ms[g_menu_state.stopwatch.lap_count] = elapsed;
-                    g_menu_state.stopwatch.lap_count++;
+                if (g_menu_state.stopwatch.elapsed_ms == 0) {
+                    // Start stopwatch (first press when reset)
+                    g_menu_state.stopwatch.state = SW_RUNNING;
+                    g_menu_state.stopwatch.start_time_ms = millis();
+                    g_menu_state.stopwatch.lap_count = 0;
+                } else {
+                    // Reset stopwatch (press again after stopping)
+                    g_menu_state.stopwatch.elapsed_ms = 0;
+                    g_menu_state.stopwatch.lap_count = 0;
+                    memset(g_menu_state.stopwatch.lap_times_ms, 0, sizeof(g_menu_state.stopwatch.lap_times_ms));
                 }
+            } else if (g_menu_state.stopwatch.state == SW_RUNNING) {
+                // Stop stopwatch (keep elapsed time for display)
+                g_menu_state.stopwatch.state = SW_STOPPED;
+                g_menu_state.stopwatch.elapsed_ms = millis() - g_menu_state.stopwatch.start_time_ms;
             }
             break;
 
@@ -105,19 +115,35 @@ void menu_action_button2() {
             // Reset graph
             g_menu_state.dyno.state = DYNO_IDLE;
             g_menu_state.dyno.sample_count = 0;
+            g_menu_state.dyno.y_scale_index = DYNO_DEFAULT_SCALE_INDEX;
+            g_menu_state.dyno.current_speed_kmh = 0.0f;
+            g_menu_state.dyno.current_acceleration_mps2 = 0.0f;
+            g_menu_state.dyno.max_acceleration_mps2 = 0.0f;
+            g_menu_state.dyno.max_speed_kmh = 0.0f;
+            g_menu_state.dyno.time_to_peak_ms = 0;
             memset(g_menu_state.dyno.speed_samples, 0, sizeof(g_menu_state.dyno.speed_samples));
             break;
 
         case MENU_STOPWATCH:
-            // Reset stopwatch
-            g_menu_state.stopwatch.state = SW_STOPPED;
-            g_menu_state.stopwatch.elapsed_ms = 0;
-            g_menu_state.stopwatch.lap_count = 0;
-            memset(g_menu_state.stopwatch.lap_times_ms, 0, sizeof(g_menu_state.stopwatch.lap_times_ms));
+            // Record lap (only when running)
+            if (g_menu_state.stopwatch.state == SW_RUNNING) {
+                if (g_menu_state.stopwatch.lap_count < MAX_LAPS) {
+                    unsigned long elapsed = millis() - g_menu_state.stopwatch.start_time_ms;
+                    g_menu_state.stopwatch.lap_times_ms[g_menu_state.stopwatch.lap_count] = elapsed;
+                    g_menu_state.stopwatch.lap_count++;
+                }
+            }
             break;
 
         default:
             break;
+    }
+}
+
+void stopwatch_update_elapsed(unsigned long now_ms) {
+    // Fast update for stopwatch elapsed time (called every loop for smooth display)
+    if (g_menu_state.stopwatch.state == SW_RUNNING) {
+        g_menu_state.stopwatch.elapsed_ms = now_ms - g_menu_state.stopwatch.start_time_ms;
     }
 }
 
@@ -131,12 +157,18 @@ void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
     if (g_menu_state.current_menu == MENU_DYNO_GRAPH) {
         switch (g_menu_state.dyno.state) {
             case DYNO_IDLE:
-                // Start recording when wheel starts spinning
-                if (speed_data.signal_active && speed_data.current_speed_kmh > 0.5f) {
+                // Start recording when wheel starts spinning (using configurable threshold)
+                if (speed_data.signal_active && speed_data.current_speed_kmh > DYNO_MIN_START_SPEED_KMH) {
                     g_menu_state.dyno.state = DYNO_RECORDING;
                     g_menu_state.dyno.start_time_ms = now_ms;
                     g_menu_state.dyno.last_sample_ms = now_ms;
                     g_menu_state.dyno.sample_count = 0;
+                    g_menu_state.dyno.y_scale_index = DYNO_DEFAULT_SCALE_INDEX;
+                    g_menu_state.dyno.current_speed_kmh = speed_data.current_speed_kmh;
+                    g_menu_state.dyno.current_acceleration_mps2 = 0.0f;
+                    g_menu_state.dyno.max_acceleration_mps2 = 0.0f;
+                    g_menu_state.dyno.max_speed_kmh = speed_data.current_speed_kmh;
+                    g_menu_state.dyno.time_to_peak_ms = 0;
                     // Record first sample
                     g_menu_state.dyno.speed_samples[0] = speed_data.current_speed_kmh;
                     g_menu_state.dyno.sample_count = 1;
@@ -147,6 +179,38 @@ void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
                 {
                     unsigned long elapsed = now_ms - g_menu_state.dyno.start_time_ms;
                     unsigned long duration_ms = (unsigned long)DYNO_DURATION_SEC * 1000UL;
+
+                    // Update current speed
+                    float prev_speed_kmh = g_menu_state.dyno.current_speed_kmh;
+                    g_menu_state.dyno.current_speed_kmh = speed_data.current_speed_kmh;
+
+                    // Track max speed and time to peak
+                    if (speed_data.current_speed_kmh > g_menu_state.dyno.max_speed_kmh) {
+                        g_menu_state.dyno.max_speed_kmh = speed_data.current_speed_kmh;
+                        g_menu_state.dyno.time_to_peak_ms = elapsed;
+                    }
+
+                    // Calculate acceleration (convert km/h to m/s, then divide by time)
+                    // acceleration = (v2 - v1) / t, where v is in m/s
+                    float speed_delta_mps = (speed_data.current_speed_kmh - prev_speed_kmh) / 3.6f;
+                    float time_delta_s = (now_ms - g_menu_state.dyno.last_sample_ms) / 1000.0f;
+                    if (time_delta_s > 0.0f) {
+                        g_menu_state.dyno.current_acceleration_mps2 = speed_delta_mps / time_delta_s;
+
+                        // Track max acceleration (only positive acceleration)
+                        if (g_menu_state.dyno.current_acceleration_mps2 > g_menu_state.dyno.max_acceleration_mps2) {
+                            g_menu_state.dyno.max_acceleration_mps2 = g_menu_state.dyno.current_acceleration_mps2;
+                        }
+                    }
+
+                    // Dynamic Y-axis scaling - increase scale only when exceeding current max
+                    float current_y_max = DYNO_Y_SCALES[g_menu_state.dyno.y_scale_index];
+                    if (speed_data.current_speed_kmh > current_y_max) {
+                        // Increase scale when exceeding current max
+                        if (g_menu_state.dyno.y_scale_index < DYNO_Y_SCALE_COUNT - 1) {
+                            g_menu_state.dyno.y_scale_index++;
+                        }
+                    }
 
                     // Check if recording complete
                     if (elapsed >= duration_ms) {

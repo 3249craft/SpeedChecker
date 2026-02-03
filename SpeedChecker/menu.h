@@ -54,6 +54,12 @@ struct DynoGraphState {
     float speed_samples[DYNO_SAMPLES];
     unsigned long start_time_ms;
     unsigned long last_sample_ms;
+    uint8_t y_scale_index;           // Current Y-axis scale index
+    float current_speed_kmh;          // Current speed during run
+    float current_acceleration_mps2;  // Current acceleration in m/s²
+    float max_acceleration_mps2;      // Maximum acceleration recorded
+    float max_speed_kmh;              // Peak speed during run
+    unsigned long time_to_peak_ms;    // Time to reach peak speed
 };
 
 // Stopwatch menu state
@@ -93,6 +99,9 @@ void menu_action_button2();
 
 // Update menu state (called each loop iteration)
 void menu_update(const SpeedData& speed_data, unsigned long now_ms);
+
+// Update stopwatch elapsed time (for high-frequency updates)
+void stopwatch_update_elapsed(unsigned long now_ms);
 
 // Convert speed from km/h to specified unit
 float menu_convert_speed(float speed_kmh, SpeedUnit unit);

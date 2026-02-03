@@ -279,10 +279,13 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
 
 static void display_draw_dyno_graph(const DynoGraphState& state) {
     // Graph dimensions (fit within content area)
-    const int16_t graph_x = 14;
-    const int16_t graph_y = MENU_CONTENT_Y + 2;
-    const int16_t graph_w = CONTENT_WIDTH - graph_x - 4;  // ~86 pixels
-    const int16_t graph_h = 38;
+    const int16_t graph_x = 18;
+    const int16_t graph_y = MENU_CONTENT_Y + 5;
+    const int16_t graph_w = CONTENT_WIDTH - graph_x - 4;  // ~82 pixels
+    const int16_t graph_h = 42;
+
+    // Get current Y-axis max from scale array
+    float y_max = DYNO_Y_SCALES[state.y_scale_index];
 
     // Draw Y-axis
     display.drawLine(graph_x, graph_y, graph_x, graph_y + graph_h, SSD1306_WHITE);
@@ -293,34 +296,51 @@ static void display_draw_dyno_graph(const DynoGraphState& state) {
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
 
-    // Y-axis label (50 at top, 0 at bottom)
-    display.setCursor(0, graph_y);
-    display.print("50");
-    display.setCursor(6, graph_y + graph_h - 6);
+    // Y-axis labels with dotted grid lines - only at DYNO_Y_SCALES values
+    char buf[4];
+    float y_scale = (float)graph_h / y_max;
+
+    // Draw guide lines for each DYNO_Y_SCALES value that fits in current y_max
+    for (uint8_t i = 0; i < DYNO_Y_SCALE_COUNT; i++) {
+        float scale_value = DYNO_Y_SCALES[i];
+        if (scale_value <= y_max) {
+            // Calculate Y position for this scale value
+            int16_t y_pos = graph_y + graph_h - (int16_t)(scale_value * y_scale);
+
+            // Draw label (compact format)
+            snprintf(buf, sizeof(buf), "%d", (int)scale_value);
+            display.setCursor(0, y_pos - 3);
+            display.print(buf);
+
+            // Draw dotted guide line
+            for (int16_t x = graph_x + 2; x < graph_x + graph_w; x += 3) {
+                display.drawPixel(x, y_pos, SSD1306_WHITE);
+            }
+        }
+    }
+
+    // Bottom label (0)
+    display.setCursor(2, graph_y + graph_h - 6);
     display.print("0");
 
-    // X-axis label
-    display.setCursor(graph_x + graph_w - 12, graph_y + graph_h + 2);
+    // X-axis label (above the line)
+    display.setCursor(graph_x + graph_w - 12, graph_y + graph_h - 10);
     display.print("10s");
 
-    // Draw state indicator
-    display.setCursor(graph_x + 4, graph_y + 2);
-    switch (state.state) {
-        case DYNO_IDLE:
-            display.print("Rdy");
-            break;
-        case DYNO_RECORDING:
-            display.print("REC");
-            break;
-        case DYNO_COMPLETE:
-            display.print("Done");
-            break;
+    // Display time to peak in top-left corner (right of Y-axis)
+    if (state.state == DYNO_RECORDING || state.state == DYNO_COMPLETE) {
+        display.setCursor(graph_x + 4, graph_y + 2);
+        display.print("TTP:");
+        char ttp_buf[8];
+        snprintf(ttp_buf, sizeof(ttp_buf), "%lu", state.time_to_peak_ms);
+        display.print(ttp_buf);
+        display.print("ms");
     }
 
     // Draw data points as line graph
     if (state.sample_count > 1) {
         float x_scale = (float)graph_w / (DYNO_SAMPLES - 1);
-        float y_scale = (float)graph_h / DYNO_MAX_SPEED_KMH;
+        float y_scale = (float)graph_h / y_max;
 
         for (uint8_t i = 1; i < state.sample_count; i++) {
             int16_t x1 = graph_x + (int16_t)((i - 1) * x_scale);
@@ -328,8 +348,8 @@ static void display_draw_dyno_graph(const DynoGraphState& state) {
 
             float speed1 = state.speed_samples[i - 1];
             float speed2 = state.speed_samples[i];
-            if (speed1 > DYNO_MAX_SPEED_KMH) speed1 = DYNO_MAX_SPEED_KMH;
-            if (speed2 > DYNO_MAX_SPEED_KMH) speed2 = DYNO_MAX_SPEED_KMH;
+            if (speed1 > y_max) speed1 = y_max;
+            if (speed2 > y_max) speed2 = y_max;
 
             int16_t y1 = graph_y + graph_h - (int16_t)(speed1 * y_scale);
             int16_t y2 = graph_y + graph_h - (int16_t)(speed2 * y_scale);
@@ -351,39 +371,65 @@ static void display_draw_stopwatch(const StopwatchState& state, unsigned long no
 
     snprintf(time_buf, sizeof(time_buf), "%02lu:%02lu.%02lu", minutes, seconds, centis);
 
-    // Draw state indicator
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, MENU_CONTENT_Y + 2);
-    switch (state.state) {
-        case SW_STOPPED:
-            display.print("STOPPED");
-            break;
-        case SW_RUNNING:
-            display.print("RUNNING");
-            break;
-    }
 
-    // Draw main time (large, size 2)
-    display.setTextSize(2);
-    display.setCursor(2, MENU_CONTENT_Y + 14);
-    display.print(time_buf);
-
-    // Draw lap times (show last 2 laps)
-    display.setTextSize(1);
-    uint8_t laps_to_show = (state.lap_count < 2) ? state.lap_count : 2;
-    for (uint8_t i = 0; i < laps_to_show; i++) {
-        uint8_t lap_idx = state.lap_count - laps_to_show + i;
-        unsigned long lap_ms = state.lap_times_ms[lap_idx];
-        unsigned long lap_sec = lap_ms / 1000;
-        unsigned long lap_min = lap_sec / 60;
-        unsigned long lap_s = lap_sec % 60;
-        unsigned long lap_c = (lap_ms % 1000) / 10;
-
-        snprintf(time_buf, sizeof(time_buf), "L%d %02lu:%02lu.%02lu",
-                 lap_idx + 1, lap_min, lap_s, lap_c);
-        display.setCursor(0, MENU_CONTENT_Y + 34 + i * 10);
+    // When stopped with laps, show all laps + final time
+    if (state.state == SW_STOPPED && state.lap_count > 0) {
+        // Show final time at top
+        display.setCursor(0, MENU_CONTENT_Y + 2);
+        display.print("FINAL: ");
         display.print(time_buf);
+
+        // Show all laps (up to 5)
+        for (uint8_t i = 0; i < state.lap_count; i++) {
+            unsigned long lap_ms = state.lap_times_ms[i];
+            unsigned long lap_sec = lap_ms / 1000;
+            unsigned long lap_min = lap_sec / 60;
+            unsigned long lap_s = lap_sec % 60;
+            unsigned long lap_c = (lap_ms % 1000) / 10;
+
+            snprintf(time_buf, sizeof(time_buf), "L%d %02lu:%02lu.%02lu",
+                     i + 1, lap_min, lap_s, lap_c);
+            display.setCursor(0, MENU_CONTENT_Y + 12 + i * 8);
+            display.print(time_buf);
+        }
+    } else {
+        // When running or stopped without laps, show large time display
+        // Draw state indicator
+        display.setCursor(0, MENU_CONTENT_Y + 2);
+        switch (state.state) {
+            case SW_STOPPED:
+                display.print("STOPPED");
+                break;
+            case SW_RUNNING:
+                display.print("RUNNING");
+                break;
+        }
+
+        // Draw main time (large, size 2)
+        display.setTextSize(2);
+        display.setCursor(2, MENU_CONTENT_Y + 14);
+        display.print(time_buf);
+
+        // Draw last 2 laps when running
+        if (state.state == SW_RUNNING && state.lap_count > 0) {
+            display.setTextSize(1);
+            uint8_t laps_to_show = (state.lap_count < 2) ? state.lap_count : 2;
+            for (uint8_t i = 0; i < laps_to_show; i++) {
+                uint8_t lap_idx = state.lap_count - laps_to_show + i;
+                unsigned long lap_ms = state.lap_times_ms[lap_idx];
+                unsigned long lap_sec = lap_ms / 1000;
+                unsigned long lap_min = lap_sec / 60;
+                unsigned long lap_s = lap_sec % 60;
+                unsigned long lap_c = (lap_ms % 1000) / 10;
+
+                snprintf(time_buf, sizeof(time_buf), "L%d %02lu:%02lu.%02lu",
+                         lap_idx + 1, lap_min, lap_s, lap_c);
+                display.setCursor(0, MENU_CONTENT_Y + 34 + i * 8);
+                display.print(time_buf);
+            }
+        }
     }
 }
 
@@ -442,8 +488,9 @@ void display_draw_menu(const MenuState& menu, const SpeedData& data, unsigned lo
         case MENU_STOPWATCH:
             display_draw_stopwatch(menu.stopwatch, now_ms);
             {
-                const char* btn1 = (menu.stopwatch.state == SW_STOPPED) ? ">" : "L";
-                display_draw_button_hints(btn1, "R", "<", ">");
+                // Show 'R' for Reset when stopped with time, otherwise 'S' for Start/Stop
+                const char* btn1 = (menu.stopwatch.state == SW_STOPPED && menu.stopwatch.elapsed_ms > 0) ? "R" : "S";
+                display_draw_button_hints(btn1, "L", "<", ">");
             }
             break;
 
