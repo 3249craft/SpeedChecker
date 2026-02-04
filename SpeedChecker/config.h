@@ -4,8 +4,24 @@
 #include <Arduino.h>
 
 // Display Configuration
+// SCREEN_MODE: 0 = 128x64 (default), 1 = 128x32 (compact, no header/sidebar)
+#define SCREEN_MODE 1
+
 #define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+#if SCREEN_MODE == 0
+  #define SCREEN_HEIGHT 64
+  const uint8_t MENU_HEADER_HEIGHT = 14;
+  const uint8_t MENU_CONTENT_Y = 16;
+  const uint8_t BUTTON_SIDEBAR_WIDTH = 10;
+#elif SCREEN_MODE == 1
+  #define SCREEN_HEIGHT 32
+  const uint8_t MENU_HEADER_HEIGHT = 0;   // No header on small screen
+  const uint8_t MENU_CONTENT_Y = 0;       // Start from top
+  const uint8_t BUTTON_SIDEBAR_WIDTH = 0; // No sidebar on small screen
+#endif
+
+const uint8_t CONTENT_WIDTH = SCREEN_WIDTH - BUTTON_SIDEBAR_WIDTH;
+
 #define OLED_RESET -1
 #define OLED_ADDR 0x3C
 
@@ -44,14 +60,6 @@ const unsigned long BUTTON_DEBOUNCE_MS = 50;
 
 // Menu Header Format: 0=centered, 1="< Name >", 2="[1/3] Name"
 #define MENU_HEADER_FORMAT 0
-
-// Display layout
-const uint8_t MENU_HEADER_HEIGHT = 14;
-const uint8_t MENU_CONTENT_Y = 16;
-
-// Button hint sidebar (vertical on right side)
-const uint8_t BUTTON_SIDEBAR_WIDTH = 10;
-const uint8_t CONTENT_WIDTH = SCREEN_WIDTH - BUTTON_SIDEBAR_WIDTH;  // 118 pixels
 
 // Dyno Graph Configuration
 const float DYNO_MAX_SPEED_KMH = 20.0f;

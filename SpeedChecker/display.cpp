@@ -73,7 +73,11 @@ void display_show_splash() {
         progress = (uint16_t)next_progress;
 
         display.clearDisplay();
+#if SCREEN_MODE == 0
         display.drawBitmap(0, 14, logo_v1, SCREEN_WIDTH, 32, SSD1306_WHITE);
+#elif SCREEN_MODE == 1
+        display.drawBitmap(0, 0, logo_v1, SCREEN_WIDTH, 32, SSD1306_WHITE);
+#endif
         display.setTextSize(1);
         display.setTextColor(SSD1306_WHITE);
         display.setCursor(0, 0);
@@ -470,28 +474,37 @@ static void display_draw_debug(const ButtonState& buttons) {
 void display_draw_menu(const MenuState& menu, const SpeedData& data, unsigned long now_ms) {
     display.clearDisplay();
 
-    // Draw header
+#if SCREEN_MODE == 0
+    // Draw header (only for 128x64 screens)
     display_draw_header(menu.current_menu);
+#endif
 
     // Draw content based on current menu
     switch (menu.current_menu) {
         case MENU_SPEEDOMETER:
             display_draw_speedometer(data, menu.speedometer);
+#if SCREEN_MODE == 0
             display_draw_button_hints("U", "R", "<", ">");
+#endif
             break;
 
+#if SCREEN_MODE == 0
+        // Dyno graph disabled on smaller screens
         case MENU_DYNO_GRAPH:
             display_draw_dyno_graph(menu.dyno);
             display_draw_button_hints("", "R", "<", ">");
             break;
+#endif
 
         case MENU_STOPWATCH:
             display_draw_stopwatch(menu.stopwatch, now_ms);
+#if SCREEN_MODE == 0
             {
                 // Show 'R' for Reset when stopped with time, otherwise 'S' for Start/Stop
                 const char* btn1 = (menu.stopwatch.state == SW_STOPPED && menu.stopwatch.elapsed_ms > 0) ? "R" : "S";
                 display_draw_button_hints(btn1, "L", "<", ">");
             }
+#endif
             break;
 
 #if DEBUG_MODE
@@ -499,7 +512,9 @@ void display_draw_menu(const MenuState& menu, const SpeedData& data, unsigned lo
             {
                 ButtonState buttons = button_get_state();
                 display_draw_debug(buttons);
+#if SCREEN_MODE == 0
                 display_draw_button_hints("", "", "<", ">");
+#endif
             }
             break;
 #endif

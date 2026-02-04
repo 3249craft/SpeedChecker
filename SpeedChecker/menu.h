@@ -8,13 +8,27 @@
 // Menu identifiers
 enum MenuId : uint8_t {
     MENU_SPEEDOMETER = 0,
+#if SCREEN_MODE == 0
     MENU_DYNO_GRAPH = 1,
     MENU_STOPWATCH = 2,
+#else
+    // Dyno disabled on smaller screens
+    MENU_STOPWATCH = 1,
+#endif
 #if DEBUG_MODE
+  #if SCREEN_MODE == 0
     MENU_DEBUG = 3,
     MENU_COUNT = 4
-#else
+  #else
+    MENU_DEBUG = 2,
     MENU_COUNT = 3
+  #endif
+#else
+  #if SCREEN_MODE == 0
+    MENU_COUNT = 3
+  #else
+    MENU_COUNT = 2  // Speedometer + Stopwatch only on small screen
+  #endif
 #endif
 };
 

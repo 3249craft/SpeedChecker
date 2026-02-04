@@ -6,7 +6,9 @@ static MenuState g_menu_state;
 // Menu names
 static const char* const MENU_NAMES[] = {
     "SpeedoMeter",
+#if SCREEN_MODE == 0
     "Dyno Graph",
+#endif
     "StopWatch",
 #if DEBUG_MODE
     "Debug"
@@ -74,9 +76,11 @@ void menu_action_button1(const SpeedData& speed_data) {
                 (SpeedUnit)((g_menu_state.speedometer.current_unit + 1) % UNIT_COUNT);
             break;
 
+#if SCREEN_MODE == 0
         case MENU_DYNO_GRAPH:
             // No action for button 3 on dyno graph
             break;
+#endif
 
         case MENU_STOPWATCH:
             if (g_menu_state.stopwatch.state == SW_STOPPED) {
@@ -111,6 +115,7 @@ void menu_action_button2() {
             speed_calculator_reset_top();
             break;
 
+#if SCREEN_MODE == 0
         case MENU_DYNO_GRAPH:
             // Reset graph
             g_menu_state.dyno.state = DYNO_IDLE;
@@ -123,6 +128,7 @@ void menu_action_button2() {
             g_menu_state.dyno.time_to_peak_ms = 0;
             memset(g_menu_state.dyno.speed_samples, 0, sizeof(g_menu_state.dyno.speed_samples));
             break;
+#endif
 
         case MENU_STOPWATCH:
             // Record lap (only when running)
@@ -153,6 +159,7 @@ void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
         g_menu_state.speedometer.max_speed_kmh = speed_data.current_speed_kmh;
     }
 
+#if SCREEN_MODE == 0
     // Update dyno graph recording (only when on dyno menu)
     if (g_menu_state.current_menu == MENU_DYNO_GRAPH) {
         switch (g_menu_state.dyno.state) {
@@ -234,6 +241,7 @@ void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
                 break;
         }
     }
+#endif
 
     // Update stopwatch elapsed time (for display when running)
     if (g_menu_state.stopwatch.state == SW_RUNNING) {

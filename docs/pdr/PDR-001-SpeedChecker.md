@@ -3,9 +3,9 @@
 ## SpeedChecker - Mini 4WD Speedometer
 
 **Document ID:** PDR-001
-**Version:** 1.0
-**Date:** 2026-02-02
-**Status:** Draft
+**Version:** 2.0
+**Date:** 2026-02-03
+**Status:** Implemented
 
 ---
 
@@ -28,18 +28,24 @@ SpeedChecker is a portable speedometer device designed to measure and display th
 
 ## 2. Functional Requirements
 
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| FR-01 | Measure speed from 0 to 99 km/h | Must |
-| FR-02 | Display speed with 0.1 km/h resolution | Must |
-| FR-03 | Update display at minimum 2 Hz (500ms) | Must |
-| FR-04 | Detect wheel rotation via reflective sensor | Must |
-| FR-05 | Show signal status indicator | Must |
-| FR-06 | Support configurable wheel diameter | Should |
-| FR-07 | Support configurable spoke count | Should |
-| FR-08 | Display diagnostic info (PPS, min interval) | Should |
-| FR-09 | Show startup splash screen with logo | Could |
-| FR-10 | Store/recall max speed per session | Could |
+| ID | Requirement | Priority | Status |
+|----|-------------|----------|--------|
+| FR-01 | Measure speed from 0 to 99 km/h | Must | ✅ Implemented |
+| FR-02 | Display speed with 0.1 resolution | Must | ✅ Implemented |
+| FR-03 | Update display at minimum 2 Hz (500ms) | Must | ✅ Implemented (400ms) |
+| FR-04 | Detect wheel rotation via reflective sensor | Must | ✅ Implemented |
+| FR-05 | Show signal status indicator | Must | ✅ Implemented |
+| FR-06 | Support configurable wheel diameter | Should | ✅ Implemented |
+| FR-07 | Support configurable spoke count | Should | ✅ Implemented |
+| FR-08 | Display diagnostic info (PPS, min interval) | Should | ✅ Implemented (Debug Mode) |
+| FR-09 | Show startup splash screen with logo | Could | ✅ Implemented |
+| FR-10 | Store/recall max speed per session | Could | ✅ Implemented |
+| FR-11 | Multi-unit speed display (km/h, mph, m/s, RPM, sig/s) | Should | ✅ Implemented |
+| FR-12 | Menu system with navigation | Must | ✅ Implemented |
+| FR-13 | Dyno graph with acceleration analysis | Should | ✅ Implemented |
+| FR-14 | Stopwatch with lap timing | Should | ✅ Implemented |
+| FR-15 | Support 128x64 and 128x32 displays | Should | ✅ Implemented |
+| FR-16 | Button interface for control | Must | ✅ Implemented |
 
 ---
 
@@ -76,9 +82,10 @@ SpeedChecker is a portable speedometer device designed to measure and display th
 | Item | Part | Quantity | Notes |
 |------|------|----------|-------|
 | MCU | ATmega32U4 (Pro Micro) | 1 | 5V/16MHz variant preferred |
-| Display | SSD1306 OLED 128x32 | 1 | I2C interface |
+| Display | SSD1306 OLED | 1 | 128x64 or 128x32, I2C interface |
 | Sensor | QRE1113 | 1 | Reflective optical sensor |
-| Resistor | 10kΩ | 1 | Pull-up for sensor output |
+| Buttons | Tactile switch | 4 | Menu navigation and control |
+| Resistor | 10kΩ | 1 | Pull-up for sensor output (optional, internal pull-up used for buttons) |
 | Connector | Micro USB | 1 | Power/programming |
 
 ### 4.2 Pin Assignment
@@ -88,6 +95,10 @@ SpeedChecker is a portable speedometer device designed to measure and display th
 | D1 (TXO) | INT3 | Sensor output |
 | D2 (SDA) | I2C Data | OLED SDA |
 | D3 (SCL) | I2C Clock | OLED SCL |
+| D4 | Digital Input | Button 1 (Menu Prev) |
+| D5 | Digital Input | Button 2 (Menu Next) |
+| D6 | Digital Input | Button 3 (Action 1) |
+| D7 | Digital Input | Button 4 (Action 2) |
 | VCC | 5V Power | All components |
 | GND | Ground | All components |
 
@@ -137,6 +148,33 @@ Method B (<2 pulses):
   Speed = distance_per_pulse / last_pulse_interval
 ```
 
+### 5.3 Menu System
+
+The device implements a multi-menu navigation system:
+
+| Menu | Description | Button Functions |
+|------|-------------|------------------|
+| Speedometer | Real-time speed with max tracking | B3: Cycle units, B4: Reset max |
+| Dyno Graph* | 10-second acceleration graph | B4: Reset graph |
+| Stopwatch | Lap timer | B3: Start/Stop/Reset, B4: Record lap |
+| Debug** | Button and sensor diagnostics | B1/B2: Navigate only |
+
+*Only available in 128x64 mode
+**Only when DEBUG_MODE enabled in config.h
+
+### 5.4 Screen Mode Configuration
+
+Two display modes supported via `SCREEN_MODE` in config.h:
+
+| Mode | Resolution | Features | Use Case |
+|------|-----------|----------|----------|
+| 0 | 128x64 | Full UI with header, sidebar, all menus | Standard displays |
+| 1 | 128x32 | Compact UI, no header/sidebar, dyno disabled | Smaller/cheaper displays |
+
+**Layout Differences:**
+- Mode 0: 14px header + 10px button sidebar (118px content width)
+- Mode 1: Full screen content (128px width, 32px height)
+
 ---
 
 ## 6. Verification & Testing
@@ -160,19 +198,31 @@ Method B (<2 pulses):
 
 ---
 
-## 7. Future Enhancements
+## 7. Implemented Features (v2.0)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Max speed hold | ✅ Implemented | Speedometer menu tracks max speed |
+| Lap timing | ✅ Implemented | Stopwatch menu with 5 lap memory |
+| Multi-unit display | ✅ Implemented | km/h, mph, m/s, RPM, sig/s |
+| Acceleration graph | ✅ Implemented | Dyno graph with auto-scaling |
+| Multi-display support | ✅ Implemented | 128x64 and 128x32 modes |
+| Button interface | ✅ Implemented | 4-button navigation and control |
+
+## 8. Future Enhancements
 
 | Priority | Feature | Description |
 |----------|---------|-------------|
-| High | Max speed hold | Display and store maximum recorded speed |
-| Medium | Lap timing | Measure time between sensor triggers |
+| High | Data export | Save dyno/lap data via USB serial |
 | Medium | Bluetooth output | Stream data to smartphone app |
+| Medium | Custom unit calibration | User-adjustable conversion factors |
 | Low | Multi-lane | Support 2-3 sensor inputs for racing |
 | Low | SD card logging | Record speed data over time |
+| Low | EEPROM settings | Persist user preferences across power cycles |
 
 ---
 
-## 8. Constraints & Limitations
+## 9. Constraints & Limitations
 
 - **Single direction** - Cannot distinguish forward vs reverse
 - **Spoke detection** - Requires visible spokes or reflective markers
@@ -181,7 +231,7 @@ Method B (<2 pulses):
 
 ---
 
-## 9. References
+## 10. References
 
 - [Mini 4WD Wiki](https://mini4wd.fandom.com/)
 - [QRE1113 Datasheet](https://www.onsemi.com/pdf/datasheet/qre1113-d.pdf)
