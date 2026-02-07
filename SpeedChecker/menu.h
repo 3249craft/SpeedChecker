@@ -66,6 +66,7 @@ struct SpeedometerState {
     unsigned long tt_start_ms;        // When wheel started spinning
     unsigned long tt15_ms;            // Time to 15 km/h (0 = not reached)
     unsigned long tt30_ms;            // Time to 30 km/h (0 = not reached)
+    unsigned long idle_start_ms;      // When speed first dropped to 0
 };
 
 // Dyno graph menu state

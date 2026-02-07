@@ -3,8 +3,8 @@
 ## SpeedChecker - Mini 4WD Speedometer
 
 **Document ID:** PDR-001
-**Version:** 2.0
-**Date:** 2026-02-03
+**Version:** 2.1
+**Date:** 2026-02-06
 **Status:** Implemented
 
 ---
@@ -46,6 +46,9 @@ SpeedChecker is a portable speedometer device designed to measure and display th
 | FR-14 | Stopwatch with lap timing | Should | ✅ Implemented |
 | FR-15 | Support 128x64 and 128x32 displays | Should | ✅ Implemented |
 | FR-16 | Button interface for control | Must | ✅ Implemented |
+| FR-17 | Time-to-speed measurement (TT15, TT30) | Should | ✅ Implemented |
+| FR-18 | Speed gauge bar on compact display | Could | ✅ Implemented |
+| FR-19 | Auto-reset Peak/TT after configurable idle | Should | ✅ Implemented |
 
 ---
 
@@ -154,7 +157,7 @@ The device implements a multi-menu navigation system:
 
 | Menu | Description | Button Functions |
 |------|-------------|------------------|
-| Speedometer | Real-time speed with max tracking | B3: Cycle units, B4: Reset max |
+| Speedometer | Real-time speed, peak tracking, TT15/TT30, speed gauge | B3: Cycle units, B4: Reset max |
 | Dyno Graph* | 10-second acceleration graph | B4: Reset graph |
 | Stopwatch | Lap timer | B3: Start/Stop/Reset, B4: Record lap |
 | Debug** | Button and sensor diagnostics | B1/B2: Navigate only |
@@ -174,6 +177,25 @@ Two display modes supported via `SCREEN_MODE` in config.h:
 **Layout Differences:**
 - Mode 0: 14px header + 10px button sidebar (118px content width)
 - Mode 1: Full screen content (128px width, 32px height)
+
+**Compact Display Layout (Mode 1):**
+```
+┌──────────────────────────────────┐
+│  12.3         km/h    Peak: 18.5│  Speed + unit + peak
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░│  Speed gauge bar
+│──────────────────────────────────│  Separator line
+│T15:1.23                T30:2.34 │  Time-to-speed
+└──────────────────────────────────┘
+```
+
+### 5.5 Speedometer Features
+
+| Feature | Description | Config |
+|---------|-------------|--------|
+| Peak speed | Tracks maximum speed per run | Auto-resets after idle |
+| TT15 / TT30 | Time to reach 15 and 30 km/h | Starts when wheel spins (>1 km/h) |
+| Speed gauge | Visual bar proportional to speed | `GAUGE_MAX_SPEED_KMH` (default 40) |
+| Auto-reset | Clears Peak/TT after idle period | `AUTO_RESET_IDLE_SEC` (default 5, 0=disabled) |
 
 ---
 
@@ -198,14 +220,17 @@ Two display modes supported via `SCREEN_MODE` in config.h:
 
 ---
 
-## 7. Implemented Features (v2.0)
+## 7. Implemented Features (v2.1)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Max speed hold | ✅ Implemented | Speedometer menu tracks max speed |
+| Peak speed tracking | ✅ Implemented | Speedometer menu, auto-resets after idle |
+| Time-to-speed (TT15/TT30) | ✅ Implemented | Measures time to 15 and 30 km/h |
+| Speed gauge bar | ✅ Implemented | Visual bar on compact display (configurable max) |
+| Auto-reset on idle | ✅ Implemented | Configurable idle timeout (default 5s, 0=disabled) |
 | Lap timing | ✅ Implemented | Stopwatch menu with 5 lap memory |
 | Multi-unit display | ✅ Implemented | km/h, mph, m/s, RPM, sig/s |
-| Acceleration graph | ✅ Implemented | Dyno graph with auto-scaling |
+| Acceleration graph | ✅ Implemented | Dyno graph with auto-scaling (128x64 only) |
 | Multi-display support | ✅ Implemented | 128x64 and 128x32 modes |
 | Button interface | ✅ Implemented | 4-button navigation and control |
 

@@ -37,6 +37,7 @@ void menu_init() {
     g_menu_state.speedometer.tt_start_ms = 0;
     g_menu_state.speedometer.tt15_ms = 0;
     g_menu_state.speedometer.tt30_ms = 0;
+    g_menu_state.speedometer.idle_start_ms = 0;
 
     // Initialize dyno graph state
     g_menu_state.dyno.state = DYNO_IDLE;
@@ -197,6 +198,22 @@ void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
         // Stop measuring when wheel stops
         if (speed_data.current_speed_kmh < 0.5f) {
             g_menu_state.speedometer.tt_measuring = false;
+        }
+    }
+
+    // Auto-reset Peak/TT after idle period
+    if (AUTO_RESET_IDLE_SEC > 0) {
+        if (speed_data.current_speed_kmh < 0.5f) {
+            if (g_menu_state.speedometer.idle_start_ms == 0) {
+                g_menu_state.speedometer.idle_start_ms = now_ms;
+            } else if (now_ms - g_menu_state.speedometer.idle_start_ms >= (unsigned long)AUTO_RESET_IDLE_SEC * 1000UL) {
+                g_menu_state.speedometer.max_speed_kmh = 0.0f;
+                g_menu_state.speedometer.tt15_ms = 0;
+                g_menu_state.speedometer.tt30_ms = 0;
+                g_menu_state.speedometer.idle_start_ms = 0;
+            }
+        } else {
+            g_menu_state.speedometer.idle_start_ms = 0;
         }
     }
 

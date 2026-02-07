@@ -84,6 +84,9 @@ const uint8_t DYNO_DEFAULT_SCALE_INDEX = 0;  // Start with 20 km/h
 // Speed Gauge Configuration
 const float GAUGE_MAX_SPEED_KMH = 40.0f;  // Max speed for gauge bar
 
+// Auto-reset Configuration
+const uint8_t AUTO_RESET_IDLE_SEC = 5;  // Reset Peak/TT after idle (0 = disabled)
+
 // Stopwatch Configuration
 const uint8_t MAX_LAPS = 5;
 
