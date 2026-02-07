@@ -30,6 +30,13 @@ void menu_init() {
     // Initialize speedometer state
     g_menu_state.speedometer.current_unit = UNIT_KMH;
     g_menu_state.speedometer.max_speed_kmh = 0.0f;
+    g_menu_state.speedometer.current_acceleration_mps2 = 0.0f;
+    g_menu_state.speedometer.prev_speed_kmh = 0.0f;
+    g_menu_state.speedometer.last_update_ms = 0;
+    g_menu_state.speedometer.tt_measuring = false;
+    g_menu_state.speedometer.tt_start_ms = 0;
+    g_menu_state.speedometer.tt15_ms = 0;
+    g_menu_state.speedometer.tt30_ms = 0;
 
     // Initialize dyno graph state
     g_menu_state.dyno.state = DYNO_IDLE;
@@ -154,9 +161,43 @@ void stopwatch_update_elapsed(unsigned long now_ms) {
 }
 
 void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
+    // Calculate live acceleration for speedometer
+    if (g_menu_state.speedometer.last_update_ms > 0) {
+        float time_delta_s = (now_ms - g_menu_state.speedometer.last_update_ms) / 1000.0f;
+        if (time_delta_s > 0.0f) {
+            float speed_delta_mps = (speed_data.current_speed_kmh - g_menu_state.speedometer.prev_speed_kmh) / 3.6f;
+            g_menu_state.speedometer.current_acceleration_mps2 = speed_delta_mps / time_delta_s;
+        }
+    }
+    g_menu_state.speedometer.prev_speed_kmh = speed_data.current_speed_kmh;
+    g_menu_state.speedometer.last_update_ms = now_ms;
+
     // Update speedometer max speed
     if (speed_data.current_speed_kmh > g_menu_state.speedometer.max_speed_kmh) {
         g_menu_state.speedometer.max_speed_kmh = speed_data.current_speed_kmh;
+    }
+
+    // Time-to-speed measurement (TT15, TT30)
+    if (!g_menu_state.speedometer.tt_measuring) {
+        // Start new measurement when wheel begins spinning
+        if (speed_data.current_speed_kmh > 1.0f) {
+            g_menu_state.speedometer.tt_measuring = true;
+            g_menu_state.speedometer.tt_start_ms = now_ms;
+            g_menu_state.speedometer.tt15_ms = 0;
+            g_menu_state.speedometer.tt30_ms = 0;
+        }
+    } else {
+        unsigned long elapsed = now_ms - g_menu_state.speedometer.tt_start_ms;
+        if (g_menu_state.speedometer.tt15_ms == 0 && speed_data.current_speed_kmh >= 15.0f) {
+            g_menu_state.speedometer.tt15_ms = elapsed;
+        }
+        if (g_menu_state.speedometer.tt30_ms == 0 && speed_data.current_speed_kmh >= 30.0f) {
+            g_menu_state.speedometer.tt30_ms = elapsed;
+        }
+        // Stop measuring when wheel stops
+        if (speed_data.current_speed_kmh < 0.5f) {
+            g_menu_state.speedometer.tt_measuring = false;
+        }
     }
 
 #if SCREEN_MODE == 0

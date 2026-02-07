@@ -59,6 +59,13 @@ enum SwState : uint8_t {
 struct SpeedometerState {
     SpeedUnit current_unit;
     float max_speed_kmh;
+    float current_acceleration_mps2;  // Live acceleration in m/s²
+    float prev_speed_kmh;             // Previous speed for delta calculation
+    unsigned long last_update_ms;     // Timestamp for time delta
+    bool tt_measuring;                // Currently measuring time-to-speed
+    unsigned long tt_start_ms;        // When wheel started spinning
+    unsigned long tt15_ms;            // Time to 15 km/h (0 = not reached)
+    unsigned long tt30_ms;            // Time to 30 km/h (0 = not reached)
 };
 
 // Dyno graph menu state

@@ -27,10 +27,19 @@ const uint8_t CONTENT_WIDTH = SCREEN_WIDTH - BUTTON_SIDEBAR_WIDTH;
 
 // Firmware Info
 extern const char FIRMWARE_VERSION[];
-const unsigned long SPLASH_DURATION_MS = 2500;
+const unsigned long SPLASH_DURATION_MS = 1000;
 
 // Sensor Configuration
-const uint8_t SENSOR_PIN = 1;
+// Sensor pin must support hardware interrupts (digitalPinToInterrupt)
+#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328PB__) || defined(__AVR_ATmega168__)
+  // Arduino Nano, Uno, Mini — INT0 = D2, INT1 = D3
+  const uint8_t SENSOR_PIN = 2;
+#elif defined(__AVR_ATmega32U4__)
+  // Arduino Leonardo, Micro — INT0 = D3, INT1 = D2, INT2 = D0, INT3 = D1
+  const uint8_t SENSOR_PIN = 3;
+#else
+  #error "Unsupported processor — define SENSOR_PIN manually for your board"
+#endif
 const uint8_t SPOKES_PER_REV = 3;
 const uint8_t EDGES_PER_SPOKE = 1;
 

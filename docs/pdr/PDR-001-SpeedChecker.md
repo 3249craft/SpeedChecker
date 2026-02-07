@@ -92,7 +92,7 @@ SpeedChecker is a portable speedometer device designed to measure and display th
 
 | MCU Pin | Function | Connection |
 |---------|----------|------------|
-| D1 (TXO) | INT3 | Sensor output |
+| D2 (ATmega328P) or D3 (ATmega32U4) | Hardware Interrupt | Sensor output (auto-selected in config.h) |
 | D2 (SDA) | I2C Data | OLED SDA |
 | D3 (SCL) | I2C Clock | OLED SCL |
 | D4 | Digital Input | Button 1 (Menu Prev) |

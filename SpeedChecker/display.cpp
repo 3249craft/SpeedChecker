@@ -1,7 +1,7 @@
 #include "display.h"
 #include "menu.h"
 #include <Wire.h>
-#include <Adafruit_GFX.h>
+ #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
 const char FIRMWARE_VERSION[] = "SpeedChkr v0.0.1b";
@@ -258,24 +258,59 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
     display.print(unit_str);
 
     // Draw signal indicator
+#if SCREEN_MODE == 1
+    // Compact screen: max speed right-aligned, then separator line below
+    display.setCursor(68, 12);
+    display.print("Peak:");
+    dtostrf(max_speed, 5, 1, buf);
+    display.print(buf);
+    display.drawLine(0, 23, SCREEN_WIDTH - 1, 23, SSD1306_WHITE);
+    // TT15 and TT30 at bottom
+    display.setCursor(0, 25);
+    display.print("T15:");
+    if (state.tt15_ms > 0) {
+        dtostrf(state.tt15_ms / 1000.0f, 4, 2, buf);
+        display.print(buf);
+    } else {
+        display.print("-.--");
+    }
+    display.setCursor(66, 25);
+    display.print("T30:");
+    if (state.tt30_ms > 0) {
+        dtostrf(state.tt30_ms / 1000.0f, 4, 2, buf);
+        display.print(buf);
+    } else {
+        display.print("-.--");
+    }
+#else
     display.setCursor(66, MENU_CONTENT_Y + 12);
     display.print(data.signal_active ? "SIG" : "---");
 
     // Draw max speed indicator
     display.setTextSize(1);
     display.setCursor(0, MENU_CONTENT_Y + 22);
-    display.print("MAX:");
+    display.print("Peak:");
     dtostrf(max_speed, 4, 1, buf);
     display.print(buf);
     display.print(unit_str);
+#endif
+
+#if SCREEN_MODE == 0
+    // Draw acceleration (128x64 has room for an extra line)
+    display.setCursor(0, MENU_CONTENT_Y + 32);
+    display.print("ACC:");
+    dtostrf(state.current_acceleration_mps2, 5, 1, buf);
+    display.print(buf);
+    display.print("m/s2");
+#endif
 
 #if DEBUG_MODE
     // Draw debug info: PPS and MIN interval
     char pps_buf[16];
-    display.setCursor(0, MENU_CONTENT_Y + 32);
+    display.setCursor(0, MENU_CONTENT_Y + 42);
     snprintf(pps_buf, sizeof(pps_buf), "PPS:%lu", data.pulses_per_second);
     display.print(pps_buf);
-    display.setCursor(0, MENU_CONTENT_Y + 42);
+    display.setCursor(64, MENU_CONTENT_Y + 42);
     snprintf(pps_buf, sizeof(pps_buf), "MIN:%luus", data.min_interval_us);
     display.print(pps_buf);
 #endif

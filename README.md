@@ -14,7 +14,7 @@ SpeedChecker measures the speed of Mini 4WD cars using a reflective optical sens
 | Display | 128x64 or 128x32 OLED (SSD1306, I2C address 0x3C) |
 | Sensor | QRE1113 reflective optical sensor |
 | Buttons | 4 tactile buttons (D4, D5, D6, D7) |
-| Sensor Pin | D1 (TXO) - interrupt capable |
+| Sensor Pin | D2 (ATmega328P) or D3 (ATmega32U4) - auto-selected by processor |
 
 ## Project Structure
 
@@ -71,13 +71,13 @@ Key parameters in `SpeedChecker/config.h`:
 ## Wiring
 
 ```
-Pro Micro          Component
+Arduino            Component
 ---------          ---------
 VCC       -------> OLED VCC, QRE1113 VCC, Buttons (pull-up)
 GND       -------> OLED GND, QRE1113 GND, Buttons (switched)
-D2 (SDA)  -------> OLED SDA
-D3 (SCL)  -------> OLED SCL
-D1 (TXO)  -------> QRE1113 OUT
+SDA       -------> OLED SDA
+SCL       -------> OLED SCL
+D2*       -------> QRE1113 OUT  (* ATmega328P: D2, ATmega32U4: D3)
 D4        -------> Button 1 (Menu Previous)
 D5        -------> Button 2 (Menu Next)
 D6        -------> Button 3 (Action 1)
@@ -144,10 +144,11 @@ D7        -------> Button 4 (Action 2)
 ## Building
 
 1. Install required libraries in Arduino IDE:
-   - Adafruit GFX Library
-   - Adafruit SSD1306
+   - Go to **Sketch > Include Library > Manage Libraries**
+   - Search and install **Adafruit GFX Library**
+   - Search and install **Adafruit SSD1306**
 2. Open `SpeedChecker/SpeedChecker.ino`
-3. Select board: Arduino Leonardo (or Pro Micro)
+3. Select your board (e.g., Arduino Nano, Arduino Leonardo)
 4. Upload
 
 ## License
