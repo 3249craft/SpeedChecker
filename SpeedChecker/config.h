@@ -81,6 +81,9 @@ const uint8_t DYNO_Y_SCALE_COUNT = 6;
 const float DYNO_Y_SCALES[DYNO_Y_SCALE_COUNT] = {20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f};
 const uint8_t DYNO_DEFAULT_SCALE_INDEX = 0;  // Start with 20 km/h
 
+// Speed Gauge Configuration
+const float GAUGE_MAX_SPEED_KMH = 40.0f;  // Max speed for gauge bar
+
 // Stopwatch Configuration
 const uint8_t MAX_LAPS = 5;
 

@@ -265,6 +265,12 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
     dtostrf(max_speed, 5, 1, buf);
     display.print(buf);
     display.drawLine(0, 23, SCREEN_WIDTH - 1, 23, SSD1306_WHITE);
+    // Speed gauge: 1px line above baseline, proportional to speed (max 50 km/h)
+    int16_t gauge_w = (int16_t)(data.current_speed_kmh * SCREEN_WIDTH / GAUGE_MAX_SPEED_KMH);
+    if (gauge_w > SCREEN_WIDTH) gauge_w = SCREEN_WIDTH;
+    if (gauge_w > 0) {
+        display.drawLine(0, 22, gauge_w - 1, 22, SSD1306_WHITE);
+    }
     // TT15 and TT30 at bottom
     display.setCursor(0, 25);
     display.print("T15:");
