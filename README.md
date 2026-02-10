@@ -141,6 +141,20 @@ D7        -------> Button 4 (Action 2)
 - Dyno graph disabled
 - Speedometer and Stopwatch only
 
+## Recommended Hardware
+
+Looking for an all-in-one board to get started? This Nano V3.0 with an integrated 128x32 OLED display is a great base for this project — no separate screen wiring needed:
+
+[Nano V3.0 ATmega328P with Integrated 0.91" OLED (128x32) - AliExpress](https://s.click.aliexpress.com/e/_c3l0PUxd)
+
+> Set `SCREEN_MODE` to `1` in `config.h` when using this board.
+
+For the speed sensor, this QRE1113 breakout board works well and is ready to wire directly to the Arduino. The mounting hole on the board is perfectly distanced from the sensor for the 19mm roller used as a paddle wheel:
+
+[QRE1113 IR Reflective Sensor Module (3.3-5V) - AliExpress](https://s.click.aliexpress.com/e/_c3NJYOFH)
+
+For the paddle wheel, the Tamiya 19mm 3-spoke alloy roller (Part# 15160) is recommended. Its 3 spokes work as reflective targets for the sensor, matching the default `SPOKES_PER_REV = 3` configuration. An affordable alternative on AliExpress is currently unavailable — link will be updated when back in stock.
+
 ## Building
 
 1. Install required libraries in Arduino IDE:
