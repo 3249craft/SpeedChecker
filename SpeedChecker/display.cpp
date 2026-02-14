@@ -259,6 +259,9 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
 
     // Draw signal indicator
 #if SCREEN_MODE == 1
+    // Signal indicator after unit
+    display.setCursor(96, MENU_CONTENT_Y + 2);
+    display.print(data.signal_active ? "SIG" : "---");
     // Compact screen: max speed right-aligned, then separator line below
     display.setCursor(68, 12);
     display.print("Peak:");
@@ -271,6 +274,16 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
     if (gauge_w > 0) {
         display.drawLine(0, 22, gauge_w - 1, 22, SSD1306_WHITE);
     }
+#if DEBUG_MODE
+    // Sensor debug info replaces T15/T30
+    char pps_buf[16];
+    display.setCursor(0, 25);
+    snprintf(pps_buf, sizeof(pps_buf), "PPS:%lu", data.pulses_per_second);
+    display.print(pps_buf);
+    display.setCursor(66, 25);
+    snprintf(pps_buf, sizeof(pps_buf), "MIN:%lu", data.min_interval_us);
+    display.print(pps_buf);
+#else
     // TT15 and TT30 at bottom
     display.setCursor(0, 25);
     display.print("T15:");
@@ -288,6 +301,7 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
     } else {
         display.print("-.--");
     }
+#endif
 #else
     display.setCursor(66, MENU_CONTENT_Y + 12);
     display.print(data.signal_active ? "SIG" : "---");
@@ -310,8 +324,8 @@ static void display_draw_speedometer(const SpeedData& data, const SpeedometerSta
     display.print("m/s2");
 #endif
 
-#if DEBUG_MODE
-    // Draw debug info: PPS and MIN interval
+#if DEBUG_MODE && SCREEN_MODE == 0
+    // Draw debug info: PPS and MIN interval (128x64 only; 128x32 shows this in bottom row)
     char pps_buf[16];
     display.setCursor(0, MENU_CONTENT_Y + 42);
     snprintf(pps_buf, sizeof(pps_buf), "PPS:%lu", data.pulses_per_second);
