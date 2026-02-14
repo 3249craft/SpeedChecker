@@ -21,6 +21,19 @@ void setup() {
 void loop() {
     static unsigned long last_update_ms = 0;
     static unsigned long last_display_ms = 0;
+    static unsigned long last_tt_update_ms = 0;
+
+    // Sub-window accumulation for 400ms main cycle
+    static unsigned long acc_pulse_count = 0;
+    static unsigned long acc_last_pulse_us = 0;
+    static unsigned long acc_last_interval_us = 0;
+    static unsigned long acc_min_interval_us = 0xFFFFFFFF;
+
+    // Sub-speed accumulation for averaging
+    static float sub_speed_sum = 0.0f;
+    static uint8_t sub_speed_count = 0;
+    static float prev_sub_speed = 0.0f;
+
     unsigned long now_ms = millis();
 
     // Process button events every loop iteration for responsive input
@@ -44,15 +57,80 @@ void loop() {
         menu_action_button2();
     }
 
-    // Update speed calculations at defined interval
+    // Fast sub-cycle (100ms) for precise TT measurement
+    unsigned long tt_interval = SPEED_UPDATE_MS / SPEED_TT_SUB_UPDATES;
+    if (now_ms - last_tt_update_ms >= tt_interval) {
+        unsigned long sub_window_ms = now_ms - last_tt_update_ms;
+        PulseData sub_data = sensor_read_and_reset();
+
+        // Accumulate for main 400ms cycle
+        acc_pulse_count += sub_data.pulse_count;
+        if (sub_data.last_pulse_us != 0) acc_last_pulse_us = sub_data.last_pulse_us;
+        if (sub_data.last_interval_us != 0) acc_last_interval_us = sub_data.last_interval_us;
+        if (sub_data.min_interval_us < acc_min_interval_us) acc_min_interval_us = sub_data.min_interval_us;
+
+        // Calculate raw speed for this sub-window
+        float raw_speed = 0.0f;
+        if (sub_data.pulse_count >= 2 && sub_window_ms > 0) {
+            float speed_mps = (sub_data.pulse_count * DISTANCE_PER_PULSE_M) / (sub_window_ms / 1000.0f);
+            raw_speed = speed_mps * 3.6f;
+        } else if (sub_data.pulse_count == 1 && sub_data.last_interval_us > 0) {
+            float seconds = sub_data.last_interval_us / 1000000.0f;
+            raw_speed = (DISTANCE_PER_PULSE_M / seconds) * 3.6f;
+        }
+
+        // Ignore unrealistic speeds entirely (noise)
+        if (raw_speed > MAX_SPEED_KMH) {
+            // Don't add to average, don't update prev, don't update TT
+        } else {
+            // Apply delta limiter at sub-update level
+            float delta = raw_speed - prev_sub_speed;
+            if (delta > MAX_SPEED_DELTA_KMH) {
+                raw_speed = prev_sub_speed + MAX_SPEED_DELTA_KMH;
+            } else if (delta < -MAX_SPEED_DELTA_KMH) {
+                raw_speed = prev_sub_speed - MAX_SPEED_DELTA_KMH;
+            }
+
+            sub_speed_sum += raw_speed;
+            sub_speed_count++;
+            prev_sub_speed = raw_speed;
+
+            // Update TT measurement with 100ms precision
+            menu_update_tt(raw_speed, now_ms);
+        }
+
+        last_tt_update_ms = now_ms;
+    }
+
+    // Main 400ms speed calculation cycle
     if (now_ms - last_update_ms >= SPEED_UPDATE_MS) {
         unsigned long window_ms = now_ms - last_update_ms;
-        PulseData pulse_data = sensor_read_and_reset();
-        SpeedData speed_data = calculate_speed(pulse_data, window_ms, micros());
+
+        // Average valid sub-window speeds
+        float avg_speed = 0.0f;
+        if (sub_speed_count > 0) {
+            avg_speed = sub_speed_sum / sub_speed_count;
+        }
+
+        // Build aggregated PulseData for signal detection and debug
+        PulseData agg_data;
+        agg_data.pulse_count = acc_pulse_count;
+        agg_data.last_pulse_us = acc_last_pulse_us;
+        agg_data.last_interval_us = acc_last_interval_us;
+        agg_data.min_interval_us = acc_min_interval_us;
+
+        SpeedData speed_data = calculate_speed(agg_data, avg_speed, window_ms, micros());
         last_speed_data = speed_data;  // Store for button actions
 
         // Update menu state
         menu_update(speed_data, now_ms);
+
+        // Reset accumulators for next 400ms window
+        acc_pulse_count = 0;
+        acc_last_interval_us = 0;
+        acc_min_interval_us = 0xFFFFFFFF;
+        sub_speed_sum = 0.0f;
+        sub_speed_count = 0;
 
         last_update_ms = now_ms;
     }
