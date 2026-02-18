@@ -51,12 +51,11 @@ const float DISTANCE_PER_PULSE_M = (PI * WHEEL_DIAMETER_M) / (SPOKES_PER_REV * E
 // Timing Configuration
 const float MAX_SPEED_KMH = 99.0f;
 const unsigned long SPEED_UPDATE_MS = 400;
-const uint8_t SPEED_TT_SUB_UPDATES = 4;    // TT checks per update window (100ms precision)
-const unsigned long MIN_PULSE_INTERVAL_US = 717;
+const unsigned long MIN_PULSE_INTERVAL_US = 120;
 
 // Speed Filtering
 const float SPEED_EMA_ALPHA = 0.3f;        // Smoothing factor (0.0-1.0, higher = more responsive)
-const float MAX_SPEED_DELTA_KMH = 10.0f;   // Max speed change per update cycle
+const float MAX_SPEED_DELTA_KMH = 15.0f;   // Max speed change per update cycle
 
 // Button Configuration
 const uint8_t BUTTON_COUNT = 4;

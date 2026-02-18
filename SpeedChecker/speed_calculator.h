@@ -16,9 +16,8 @@ struct SpeedData {
 // Initialize calculator state
 void speed_calculator_init();
 
-// Calculate speed from pre-averaged sub-window speed and pulse data
+// Calculate speed from pulse data and time window
 SpeedData calculate_speed(const PulseData& pulse_data,
-                          float avg_sub_speed_kmh,
                           unsigned long window_ms,
                           unsigned long now_us);
 
