@@ -11,18 +11,34 @@ void speed_calculator_init() {
 }
 
 SpeedData calculate_speed(const PulseData& pulse_data,
-                          float avg_sub_speed_kmh,
                           unsigned long window_ms,
                           unsigned long now_us) {
     SpeedData data;
     float window_sec = window_ms / 1000.0f;
-    float current_speed = avg_sub_speed_kmh;
+    float current_speed = 0.0f;
 
-    // Calculate pulses per second (for debug display)
+    // Calculate pulses per second
     if (window_sec > 0.0f) {
         data.pulses_per_second = (unsigned long)(pulse_data.pulse_count / window_sec);
     } else {
         data.pulses_per_second = 0;
+    }
+
+    // Calculate speed using pulse count method (preferred for >= 2 pulses)
+    if (pulse_data.pulse_count >= 2 && window_sec > 0.0f) {
+        float speed_mps = (pulse_data.pulse_count * DISTANCE_PER_PULSE_M) / window_sec;
+        current_speed = speed_mps * 3.6f;
+    }
+    // Fall back to interval-based method for single pulse
+    else if (pulse_data.last_interval_us > 0) {
+        float seconds = pulse_data.last_interval_us / 1000000.0f;
+        float speed_mps = DISTANCE_PER_PULSE_M / seconds;
+        current_speed = speed_mps * 3.6f;
+    }
+
+    // Clamp to max speed
+    if (current_speed > MAX_SPEED_KMH) {
+        current_speed = MAX_SPEED_KMH;
     }
 
     // Check signal activity
@@ -35,7 +51,15 @@ SpeedData calculate_speed(const PulseData& pulse_data,
         current_speed = 0.0f;
         smoothed_speed_kmh = 0.0f;
     } else {
-        // Apply EMA smoothing (delta limiting is handled at sub-update level)
+        // Apply delta limiter - reject unrealistic speed jumps
+        float delta = current_speed - smoothed_speed_kmh;
+        if (delta > MAX_SPEED_DELTA_KMH) {
+            current_speed = smoothed_speed_kmh + MAX_SPEED_DELTA_KMH;
+        } else if (delta < -MAX_SPEED_DELTA_KMH) {
+            current_speed = smoothed_speed_kmh - MAX_SPEED_DELTA_KMH;
+        }
+
+        // Apply EMA smoothing
         smoothed_speed_kmh = SPEED_EMA_ALPHA * current_speed + (1.0f - SPEED_EMA_ALPHA) * smoothed_speed_kmh;
         current_speed = smoothed_speed_kmh;
     }

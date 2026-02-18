@@ -178,7 +178,28 @@ void menu_update(const SpeedData& speed_data, unsigned long now_ms) {
         g_menu_state.speedometer.max_speed_kmh = speed_data.current_speed_kmh;
     }
 
-    // TT measurement is now handled by menu_update_tt() at higher frequency
+    // Time-to-speed measurement (TT15, TT30)
+    if (!g_menu_state.speedometer.tt_measuring) {
+        // Start new measurement when wheel begins spinning
+        if (speed_data.current_speed_kmh > 1.0f) {
+            g_menu_state.speedometer.tt_measuring = true;
+            g_menu_state.speedometer.tt_start_ms = now_ms;
+            g_menu_state.speedometer.tt15_ms = 0;
+            g_menu_state.speedometer.tt30_ms = 0;
+        }
+    } else {
+        unsigned long elapsed = now_ms - g_menu_state.speedometer.tt_start_ms;
+        if (g_menu_state.speedometer.tt15_ms == 0 && speed_data.current_speed_kmh >= 15.0f) {
+            g_menu_state.speedometer.tt15_ms = elapsed;
+        }
+        if (g_menu_state.speedometer.tt30_ms == 0 && speed_data.current_speed_kmh >= 30.0f) {
+            g_menu_state.speedometer.tt30_ms = elapsed;
+        }
+        // Stop measuring when wheel stops
+        if (speed_data.current_speed_kmh < 0.5f) {
+            g_menu_state.speedometer.tt_measuring = false;
+        }
+    }
 
     // Auto-reset Peak/TT after idle period
     if (AUTO_RESET_IDLE_SEC > 0) {
@@ -330,28 +351,4 @@ const char* menu_get_menu_name(MenuId menu) {
         return MENU_NAMES[menu];
     }
     return MENU_NAMES[0];
-}
-
-void menu_update_tt(float raw_speed_kmh, unsigned long now_ms) {
-    if (!g_menu_state.speedometer.tt_measuring) {
-        // Start new measurement when wheel begins spinning
-        if (raw_speed_kmh > 1.0f) {
-            g_menu_state.speedometer.tt_measuring = true;
-            g_menu_state.speedometer.tt_start_ms = now_ms;
-            g_menu_state.speedometer.tt15_ms = 0;
-            g_menu_state.speedometer.tt30_ms = 0;
-        }
-    } else {
-        unsigned long elapsed = now_ms - g_menu_state.speedometer.tt_start_ms;
-        if (g_menu_state.speedometer.tt15_ms == 0 && raw_speed_kmh >= 15.0f) {
-            g_menu_state.speedometer.tt15_ms = elapsed;
-        }
-        if (g_menu_state.speedometer.tt30_ms == 0 && raw_speed_kmh >= 30.0f) {
-            g_menu_state.speedometer.tt30_ms = elapsed;
-        }
-        // Stop measuring when wheel stops
-        if (raw_speed_kmh < 0.5f) {
-            g_menu_state.speedometer.tt_measuring = false;
-        }
-    }
 }

@@ -122,9 +122,6 @@ void menu_action_button2();
 // Update menu state (called each loop iteration)
 void menu_update(const SpeedData& speed_data, unsigned long now_ms);
 
-// Update TT measurement with higher frequency raw speed (called every sub-window)
-void menu_update_tt(float raw_speed_kmh, unsigned long now_ms);
-
 // Update stopwatch elapsed time (for high-frequency updates)
 void stopwatch_update_elapsed(unsigned long now_ms);
 
